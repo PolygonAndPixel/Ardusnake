@@ -1,7 +1,7 @@
 /* 
  * Ardusnake
  * Copyright (C) 2015 
- * Maicon Hieronymus <polygon6@web.de>
+ * Maicon Hieronymus <mhierony@students.uni-mainz.de>
  * All rights reserved.
  * 
  * This file is free software; you can redistribute it and/or modify
@@ -16,15 +16,19 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
- * ------------------------------------------------------------------------------
+ * -----------------------------------------------------------------------------
  *  
  * @file        Ardusnake.ino
  * @date        14.10.2015
- * @version     0.1
- * @author      Maicon Hieronymus <polygon6@web.de>
+ * @version     0.2
+ * @author      Maicon Hieronymus <mhierony@students.uni-mainz.de>
  *
  * @brief This program is a game similar to Snake on old mobile phones. 
- * It is coded with Arduboy in mind. 
+ * It is coded with Arduboy in mind. Since I do not have an Arduboy yet,
+ * I have not tested anything yet. 
+ * Enter name and display highscore are taken from Sebastian Goscik as seen in
+ * https://github.com/Arduboy/Arduboy/blob/master/examples/ArduBreakout/ArduBreakout.ino
+ * and slightly modified.
  */
 #include "Arduboy.h"
 Arduboy arduboy;
@@ -47,13 +51,11 @@ byte mousePoints; // The points which can be gathered by the current mouse.
 byte[] mousePosition = new byte[2] // The X,Y-Position of a mouse.    
 unsigned int score = 0; // The current score.
 unsigned int eaten = 0; // The amount of eaten mices.
+boolean initLevel = true;
 boolean pause = false; // True if game is paused.
 boolean ingame = false; // True if game started.
-boolean enteredName = false; // True if name has been entered for highscore.
 char name[3]; // The name which can be entered for highscore.
 boolean intercept; // Does the new mouse intercept with the snake?
-// byte random = 42; // A number which will be overflowen in order to create a 
-                  // pseudorandom new number.
 int i; // A counter variable used in for-loops.
 char text[16];
                  
@@ -75,6 +77,7 @@ void showIntro()
 }
 
 // Titlescreen with AAaarrrr - Snake by me.
+// TODO: create nice music.
 void showTitle()
 {
     for(i = 0; i < 16; i++)
@@ -97,12 +100,61 @@ void showTitle()
         arduboy.drawBitmap(0, 0, author, 128, 64, 1); 
         arduboy.display();
     }
+    
+    arduboy.tunes.tone(987, 160);
+    delay(160);
+    arduboy.tunes.tone(1318, 400);
+    delay(2000);
 }
 
 // Display Highscore with the scores. Duh!
-boolean showHighscore()
+// This method is from Sebastian Goscik as seen in
+// https://github.com/Arduboy/Arduboy/blob/master/examples/ArduBreakout/ArduBreakout.ino
+// and slightly modified.
+// Function by nootropic design to display highscores.
+void showHighscore()
 {
-    
+    byte y = 10;
+    byte x = 24;
+    // Each block of EEPROM has 10 high scores, and each high score entry
+    // is 5 bytes long:  3 bytes for initials and two bytes for score.
+    int address = 2*10*5;
+    byte hi, lo;
+    arduboy.clearDisplay();
+    arduboy.drawBitmap(0, 0, highscore, 128, 24, 1);
+    arduboy.display();
+
+    for(i=0; i<10; i++)
+    {
+        sprintf(text, "%2d", i+1);
+        arduboy.setCursor(x,y+(i*8));
+        arduboy.print(text);
+        arduboy.display();
+        hi = EEPROM.read(address + (5*i));
+        lo = EEPROM.read(address + (5*i) + 1);
+
+        if ((hi == 0xFF) && (lo == 0xFF))
+        {
+            score = 0;
+        }
+        else
+        {
+            score = (hi << 8) | lo;
+        }
+
+        initials[0] = (char)EEPROM.read(address + (5*i) + 2);
+        initials[1] = (char)EEPROM.read(address + (5*i) + 3);
+        initials[2] = (char)EEPROM.read(address + (5*i) + 4);
+
+        if (score > 0)
+        {
+            sprintf(text, "%c%c%c %u", initials[0], initials[1], initials[2], score);
+            arduboy.setCursor(x + 24, y + (i*8));
+            arduboy.print(text);
+            arduboy.display();
+        }
+    }
+    arduboy.display();
 }
                  
 // Draw score.
@@ -124,12 +176,8 @@ void createMouse()
     {
         mousePosition[0] = random(0, PLAYGROUNDWIDTH);
         mousePosition[1] = random(0, PLAYGROUNDHEIGTH);
-        // Multiply random with an arbitrary number and use modulo to be within
-        // the playground.
-//         mousePosition[0] = (random*random)%PLAYGROUNDWIDTH;
-//         mousePosition[1] = (random*random)%PLAYGROUNDHEIGTH; 
         intercept = false;
-        for(i=0; i<snakePosition.length; i++)
+        for(i=0; i<snakeLength; i++)
         {
             if(snakePosition[i][0] == mousePosition[0]
                 && snakePosition[i][1] == mousePosition[1])
@@ -140,12 +188,18 @@ void createMouse()
     }
     mousePoints = eaten*5 + 10;
     // Draw the mouse
+    drawMouse();
+}
+
+void drawMouse()
+{
     arduboy.drawPixel(mousePosition[0], mousePosition[1], 1);
 }
 
 // This inits the snake with a head.
 void createSnake()
 {
+    snakeLength = 1;
     for(i=1; i<snakePosition.length; i++)
     {
         // Non-existent bodyparts are set to 255 since there is no coordinate
@@ -160,14 +214,11 @@ void createSnake()
     drawSnake();
 }
 
-// Draw snake.
 void drawSnake()
 {
-    i=0;
-    while(snakePosition[i][0] != 255)
+    for(i=0; i<snakeLength; i++)
     {
         arduboy.drawPixel(snakePosition[i][0], snakePosition[i][1], 1);
-        i++;
     }
 }
 
@@ -176,10 +227,11 @@ void moveSnake()
     // Change position for each segment of the snake except the head. 
     // This is an awful implementation!
     i=1;
-    while(snakePosition[i][0] != 255)
+    while(i<snakeLength)
     {
         snakePosition[i][0] = snakePosition[i-1][0];
         snakePosition[i][1] = snakePosition[i-1][1];
+        i++;
     }
     // If Button is pressed, use the direction or else just go straight forward.
     switch(arduboy.getInput())
@@ -250,7 +302,6 @@ void moveSnake()
             break;
             
         default:
-        
     }
     if(eatingYourself) gameOver();
     drawSnake();
@@ -313,7 +364,9 @@ boolean eatingYourself()
 void gameOver()
 {
     drawGameOver();
-    enterHighscore();
+    if(score>0) enterHighscore();
+    arduboy.clearDisplay();
+    initLevel = true;
 }
 
 // Draw Game Over.
@@ -324,24 +377,78 @@ void drawGameOver()
     arduboy.display();
     delay(5000);
 }
-// Enter Highscore.
+
+// Enter highscore and name.
+// This method is from Sebastian Goscik as seen in
+// https://github.com/Arduboy/Arduboy/blob/master/examples/ArduBreakout/ArduBreakout.ino
+// and slightly modified.
 void enterHighscore()
 {
-    // If Highscore is high enough, enter name.
-    if()
-    {
-        enterName();
-    } else 
-    {
-        //delay
-    }
-    
-}
+    // Each block of EEPROM has 10 high scores, and each high score entry
+    // is 5 bytes long:  3 bytes for initials and two bytes for score.
+    int address = file * 10 * 5;
+    byte hi, lo;
+    char tmpInitials[3];
+    unsigned int tmpScore = 0;
 
-// Enter name.
-void enterName()
-{
-    
+    // High score processing
+    for(byte i = 0; i < 10; i++)
+    {
+        hi = EEPROM.read(address + (5*i));
+        lo = EEPROM.read(address + (5*i) + 1);
+        if ((hi == 0xFF) && (lo == 0xFF))
+        {
+            // The values are uninitialized, so treat this entry
+            // as a score of 0.
+            tmpScore = 0;
+        } else
+        {
+            tmpScore = (hi << 8) | lo;
+        }
+        if (score > tmpScore)
+        {
+            enterInitials();
+            for(byte j=i;j<10;j++)
+            {
+                hi = EEPROM.read(address + (5*j));
+                lo = EEPROM.read(address + (5*j) + 1);
+
+                if ((hi == 0xFF) && (lo == 0xFF))
+                {
+                    tmpScore = 0;
+                }
+                else
+                {
+                    tmpScore = (hi << 8) | lo;
+                }
+
+                tmpInitials[0] = (char)EEPROM.read(address + (5*j) + 2);
+                tmpInitials[1] = (char)EEPROM.read(address + (5*j) + 3);
+                tmpInitials[2] = (char)EEPROM.read(address + (5*j) + 4);
+
+                // write score and initials to current slot
+                EEPROM.write(address + (5*j), ((score >> 8) & 0xFF));
+                EEPROM.write(address + (5*j) + 1, (score & 0xFF));
+                EEPROM.write(address + (5*j) + 2, initials[0]);
+                EEPROM.write(address + (5*j) + 3, initials[1]);
+                EEPROM.write(address + (5*j) + 4, initials[2]);
+
+                // tmpScore and tmpInitials now hold what we want to
+                //write in the next slot.
+                score = tmpScore;
+                initials[0] = tmpInitials[0];
+                initials[1] = tmpInitials[1];
+                initials[2] = tmpInitials[2];
+            }
+
+            score = 0;
+            initials[0] = ' ';
+            initials[1] = ' ';
+            initials[2] = ' ';
+
+            return;
+        }
+    }
 }
 
 // Setup code runs once.
@@ -362,12 +469,26 @@ void loop
     if (!(arduboy.nextFrame())) return;
     
     // Show titlescreen and highscorelist until fire is pressed.
-    while (!arduboy.getInput & FIRE_BUTTON)
+    while (!arduboy.getInput & FIRE_BUTTON & !ingame)
     {
         showTitle();
         showHighscore();
     }
+    ingame = true;
+    if(initLevel)
+    {
+        score = 0;
+        eaten = 0;
+        createMouse();
+        createSnake();
+        initLevel=false;
+    }
+    drawSnake();
+    drawMouse();
+    drawScore();
     
-    
-    
+    // Pause if PAUSE is pressed.
+    if(arduboy.getInput() & PAUSE_BUTTON) pause();
+    moveSnake();
+    arduboy.display();
 }
