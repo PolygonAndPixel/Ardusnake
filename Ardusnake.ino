@@ -59,7 +59,9 @@ boolean intercept; // Does the new mouse intercept with the snake?
 int i; // A counter variable used in for-loops.
 char text[16];
                  
-// Intro with wooosh - Arduboy
+/**
+ * @brief Intro with wooosh - Arduboy.
+ */
 void showIntro()
 {
     for(i = 0; i < 16; i++)
@@ -76,8 +78,10 @@ void showIntro()
     delay(2000);
 }
 
-// Titlescreen with AAaarrrr - Snake by me.
-// TODO: create nice music.
+/**
+ * @brief Titlescreen with AAaarrrr - Snake by me.
+ * TODO: create nice music.
+ */
 void showTitle()
 {
     for(i = 0; i < 16; i++)
@@ -107,11 +111,13 @@ void showTitle()
     delay(2000);
 }
 
-// Display Highscore with the scores. Duh!
-// This method is from Sebastian Goscik as seen in
-// https://github.com/Arduboy/Arduboy/blob/master/examples/ArduBreakout/ArduBreakout.ino
-// and slightly modified.
-// Function by nootropic design to display highscores.
+/**
+ * @brief Display Highscore with the scores. 
+ * This method is from Sebastian Goscik as seen in
+ * https://github.com/Arduboy/Arduboy/blob/master/examples/ArduBreakout/ArduBreakout.ino
+ * and slightly modified.
+ * Function by nootropic design to display highscores.
+ */
 void showHighscore()
 {
     byte y = 10;
@@ -157,7 +163,10 @@ void showHighscore()
     arduboy.display();
 }
                  
-// Draw score.
+/**
+ * @brief Draw the score on the right of the payground with a line on the left
+ * to bound the playground.
+ */
 void drawScore()
 {
     // Draw a line and the score to the left.
@@ -167,7 +176,9 @@ void drawScore()
     Arduboy.drawLine(100, 0, 100, 64, 1);
 }
 
-// create and draw random mouse.
+/**
+ * @brief Create and draw a mouse with random position.
+ */
 void createMouse()
 {
     // Create new coordinates which are not within the snake.
@@ -187,16 +198,21 @@ void createMouse()
         }
     }
     mousePoints = eaten*5 + 10;
-    // Draw the mouse
     drawMouse();
 }
 
+/**
+ * @brief Draw a mouse which consists only of a single pixel.
+ */
 void drawMouse()
 {
     arduboy.drawPixel(mousePosition[0], mousePosition[1], 1);
 }
 
-// This inits the snake with a head.
+/**
+ * @brief Initiate a snake with a head only and draw the snake on the middle of
+ * the playground with a direction to the right.
+ */
 void createSnake()
 {
     snakeLength = 1;
@@ -214,6 +230,9 @@ void createSnake()
     drawSnake();
 }
 
+/**
+ * @brief Draw a snake with only one pixel per segment.
+ */
 void drawSnake()
 {
     for(i=0; i<snakeLength; i++)
@@ -222,6 +241,10 @@ void drawSnake()
     }
 }
 
+/**
+ * @brief Move the snake towards the current direction or the direction of
+ * the pressed button and draw the new position.
+ */
 void moveSnake()
 {
     // Change position for each segment of the snake except the head. 
@@ -307,8 +330,11 @@ void moveSnake()
     drawSnake();
 }
 
-// Returns true, if mouse is eaten, adds the score and calls the method to
-// create a new mouse.
+/**
+ * @brief Checks if the mouse is eaten and increases the score and calls
+ * createMouse() if it is true.
+ * @return Returns true if mouse is eaten.
+ */
 boolean didSnakeEat()
 {
     if(snakePosition[0][0] == mousePosition[0]
@@ -322,7 +348,10 @@ boolean didSnakeEat()
     return false;
 }
 
-// Pause.
+/**
+ * @brief Pauses the game until PAUSE_BUTTON is pressed again and redraws
+ * the playground.
+ */
 void pause()
 {
     pause = true;
@@ -339,13 +368,19 @@ void pause()
     arduboy.drawPixel(mousePosition[0], mousePosition[1], 1);
 }
 
+/**
+ * @brief Draw a Bitmap 'pause' on the screen.
+ */
 void drawPause()
 {
     arduboy.drawBitmap(0, 0, pause, 128, 64, 1); 
     arduboy.display();
 }
 
-// Did the snake eat herself (or himself or itself or whatever)?
+/**
+ * @brief Checks if the snake collides with herself.
+ * @return True if there is a collision with the snake.
+ */
 boolean eatingYourself()
 {
     i=1;
@@ -360,7 +395,10 @@ boolean eatingYourself()
     return false;
 }
 
-// GameOver
+/**
+ * @brief Calls the functions to show 'Game Over', enter the highscore and start
+ * a new level.
+ */
 void gameOver()
 {
     drawGameOver();
@@ -369,7 +407,9 @@ void gameOver()
     initLevel = true;
 }
 
-// Draw Game Over.
+/**
+ * @brief Clears the screen and draws a bitmap 'gameover' on the screen.
+ */
 void drawGameOver()
 {
     arduboy.clearDisplay();
@@ -378,10 +418,13 @@ void drawGameOver()
     delay(5000);
 }
 
-// Enter highscore and name.
-// This method is from Sebastian Goscik as seen in
-// https://github.com/Arduboy/Arduboy/blob/master/examples/ArduBreakout/ArduBreakout.ino
-// and slightly modified.
+/**
+ * @brief This method lets the user enter his or hers name along with the 
+ * highscore.
+ * This method is from Sebastian Goscik as seen in
+ * https://github.com/Arduboy/Arduboy/blob/master/examples/ArduBreakout/ArduBreakout.ino
+ * and slightly modified.
+ */
 void enterHighscore()
 {
     // Each block of EEPROM has 10 high scores, and each high score entry
@@ -451,7 +494,10 @@ void enterHighscore()
     }
 }
 
-// Setup code runs once.
+/**
+ * @brief Prints 'Hello World!', shows the intro and inits the seed for random
+ * numbers.
+ */
 void setup
 {
     arduboy.start();
@@ -462,7 +508,9 @@ void setup
     arduboy.initRandomSeed();
 }
 
-// Loop is repeated.
+/**
+ * @brief This function calls all the other functions during the game.
+ */
 void loop
 {
     // pause render until it's time for the next frame
