@@ -517,7 +517,7 @@ void loop
     if (!(arduboy.nextFrame())) return;
     
     // Show titlescreen and highscorelist until fire is pressed.
-    while (!arduboy.getInput & FIRE_BUTTON & !ingame)
+    while ((!arduboy.getInput & FIRE_BUTTON) && !ingame)
     {
         showTitle();
         showHighscore();
