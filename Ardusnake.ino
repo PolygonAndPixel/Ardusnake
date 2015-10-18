@@ -260,19 +260,19 @@ void moveSnake()
     switch(arduboy.getInput())
     {
         case UP:
-            direction = UP;
+            if(direction != DOWN) direction = UP;
             break;
             
         case DOWN:
-            direction = DOWN;
+            if(direction != UP) direction = DOWN;
             break;
             
         case LEFT:
-            direction = LEFT;
+            if(direction != RIGHT) direction = LEFT;
             break;
             
         case RIGHT:
-            direction = RIGHT;
+            if(direction != LEFT) direction = RIGHT;
             break;
             
         default:
