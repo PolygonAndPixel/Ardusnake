@@ -257,6 +257,7 @@ void moveSnake()
         i++;
     }
     // If Button is pressed, use the direction or else just go straight forward.
+    // Using two directions at once does not work!
     switch(arduboy.getInput())
     {
         case UP:
