@@ -31,7 +31,7 @@
  * and slightly modified.
  */
 #include "Arduboy.h"
-Arduboy arduboy;
+#include "ardusnake_bitmaps.h"
 
 #define FIRE_BUTTON 1
 #define PAUSE_BUTTON 2
@@ -40,24 +40,27 @@ Arduboy arduboy;
 #define UP 16
 #define LEFT 32
 
+Arduboy arduboy;
+
 const byte PLAYGROUNDWIDTH = 100;
-const byte PLAYGROUNDHEIGTH = 64
+const byte PLAYGROUNDHEIGTH = 64;
 byte direction; // The current direction of the snake. 4,8,16,32 <=> d,r,u,l
 byte snakeLength = 1; // The current length of the snake.
 // The X,Y-Position of each of the snake's segments. The head is always on 
 // the lowest index.
 byte snakePosition[PLAYGROUNDWIDTH*PLAYGROUNDHEIGTH][2];
 byte mousePoints; // The points which can be gathered by the current mouse.                                              
-byte[] mousePosition = new byte[2] // The X,Y-Position of a mouse.    
+byte mousePosition[2]; // The X,Y-Position of a mouse.    
 unsigned int score = 0; // The current score.
 unsigned int eaten = 0; // The amount of eaten mices.
 boolean initLevel = true;
-boolean pause = false; // True if game is paused.
+boolean gamePaused = false; // True if game is paused.
 boolean ingame = false; // True if game started.
 char name[3]; // The name which can be entered for highscore.
 boolean intercept; // Does the new mouse intercept with the snake?
 int i; // A counter variable used in for-loops.
 char text[16];
+char initials[3]; //Initials used in high score
                  
 /**
  * @brief Intro with wooosh - Arduboy.
@@ -118,13 +121,13 @@ void showTitle()
  * and slightly modified.
  * Function by nootropic design to display highscores.
  */
-void showHighscore()
+void showHighscore(byte file)
 {
     byte y = 10;
     byte x = 24;
     // Each block of EEPROM has 10 high scores, and each high score entry
     // is 5 bytes long:  3 bytes for initials and two bytes for score.
-    int address = 2*10*5;
+    int address = file*10*5;
     byte hi, lo;
     arduboy.clearDisplay();
     arduboy.drawBitmap(0, 0, highscore, 128, 24, 1);
@@ -173,7 +176,7 @@ void drawScore()
     sprintf(text, "SCORE:%u", score);
     arduboy.setCursor(101, 40);
     arduboy.print(text);
-    Arduboy.drawLine(100, 0, 100, 64, 1);
+    arduboy.drawLine(100, 0, 100, 64, 1);
 }
 
 /**
@@ -216,7 +219,8 @@ void drawMouse()
 void createSnake()
 {
     snakeLength = 1;
-    for(i=1; i<snakePosition.length; i++)
+    // PLAYGROUNDWIDTH*PLAYGROUNDHEIGTH is the max length of the snake.
+    for(i=1; i<PLAYGROUNDWIDTH*PLAYGROUNDHEIGTH; i++)
     {
         // Non-existent bodyparts are set to 255 since there is no coordinate
         // with 255.
@@ -278,6 +282,7 @@ void moveSnake()
             
         default:
             // Do not change direction
+            break;
     }
     switch(direction)
     {
@@ -314,7 +319,7 @@ void moveSnake()
             }
             break;
             
-        case DOWN:
+        case LEFT:
             // Bouncing on a wall?
             if(snakePosition[0][1] != 0) 
             {
@@ -326,6 +331,7 @@ void moveSnake()
             break;
             
         default:
+            break;
     }
     if(eatingYourself) gameOver();
     drawSnake();
@@ -353,14 +359,14 @@ boolean didSnakeEat()
  * @brief Pauses the game until PAUSE_BUTTON is pressed again and redraws
  * the playground.
  */
-void pause()
+void pauseGame()
 {
-    pause = true;
-    drawPause();
-    while(pause)
+    gamePaused = true;
+    drawpauseGame();
+    while(gamePaused)
     {
         // Once PauseButton is pressed, resume.
-        if(arduboy.getInput() & PAUSE_BUTTON) pause = false;
+        if(arduboy.getInput() & PAUSE_BUTTON) gamePaused = false;
     }
     // Redraw everything from the playground necessary?
     arduboy.clearDisplay();
@@ -372,7 +378,7 @@ void pause()
 /**
  * @brief Draw a Bitmap 'pause' on the screen.
  */
-void drawPause()
+void drawpauseGame()
 {
     arduboy.drawBitmap(0, 0, pause, 128, 64, 1); 
     arduboy.display();
@@ -403,7 +409,7 @@ boolean eatingYourself()
 void gameOver()
 {
     drawGameOver();
-    if(score>0) enterHighscore();
+    if(score>0) enterHighscore(2);
     arduboy.clearDisplay();
     initLevel = true;
 }
@@ -420,13 +426,128 @@ void drawGameOver()
 }
 
 /**
+ * @brief Function by nootropic design to add high scores
+ */
+void enterInitials()
+{
+  char index = 0;
+
+  arduboy.clearDisplay();
+
+  initials[0] = ' ';
+  initials[1] = ' ';
+  initials[2] = ' ';
+
+  while (true)
+  {
+    arduboy.display();
+    arduboy.clearDisplay();
+
+    arduboy.setCursor(16,0);
+    arduboy.print("HIGH SCORE");
+    sprintf(text, "%u", score);
+    arduboy.setCursor(88, 0);
+    arduboy.print(text);
+    arduboy.setCursor(56, 20);
+    arduboy.print(initials[0]);
+    arduboy.setCursor(64, 20);
+    arduboy.print(initials[1]);
+    arduboy.setCursor(72, 20);
+    arduboy.print(initials[2]);
+    for(byte i = 0; i < 3; i++)
+    {
+      arduboy.drawLine(56 + (i*8), 27, 56 + (i*8) + 6, 27, 1);
+    }
+    arduboy.drawLine(56, 28, 88, 28, 0);
+    arduboy.drawLine(56 + (index*8), 28, 56 + (index*8) + 6, 28, 1);
+    delay(150);
+
+    if (arduboy.pressed(LEFT_BUTTON) || arduboy.pressed(B_BUTTON))
+    {
+      index--;
+      if (index < 0)
+      {
+        index = 0;
+      } else
+      {
+        arduboy.tunes.tone(1046, 250);
+      }
+    }
+
+    if (arduboy.pressed(RIGHT_BUTTON))
+    {
+      index++;
+      if (index > 2)
+      {
+        index = 2;
+      }  else {
+        arduboy.tunes.tone(1046, 250);
+      }
+    }
+
+    if (arduboy.pressed(DOWN_BUTTON))
+    {
+      initials[index]++;
+      arduboy.tunes.tone(523, 250);
+      // A-Z 0-9 :-? !-/ ' '
+      if (initials[index] == '0')
+      {
+        initials[index] = ' ';
+      }
+      if (initials[index] == '!')
+      {
+        initials[index] = 'A';
+      }
+      if (initials[index] == '[')
+      {
+        initials[index] = '0';
+      }
+      if (initials[index] == '@')
+      {
+        initials[index] = '!';
+      }
+    }
+
+    if (arduboy.pressed(UP_BUTTON))
+    {
+      initials[index]--;
+      arduboy.tunes.tone(523, 250);
+      if (initials[index] == ' ') {
+        initials[index] = '?';
+      }
+      if (initials[index] == '/') {
+        initials[index] = 'Z';
+      }
+      if (initials[index] == 31) {
+        initials[index] = '/';
+      }
+      if (initials[index] == '@') {
+        initials[index] = ' ';
+      }
+    }
+
+    if (arduboy.pressed(A_BUTTON))
+    {
+      if (index < 2)
+      {
+        index++;
+        arduboy.tunes.tone(1046, 250);
+      } else {
+        arduboy.tunes.tone(1046, 250);
+        return;
+      }
+    }
+  }
+}
+
+/**
  * @brief This method lets the user enter his or hers name along with the 
  * highscore.
  * This method is from Sebastian Goscik as seen in
  * https://github.com/Arduboy/Arduboy/blob/master/examples/ArduBreakout/ArduBreakout.ino
  * and slightly modified.
  */
-void enterHighscore()
+void enterHighscore(byte file)
 {
     // Each block of EEPROM has 10 high scores, and each high score entry
     // is 5 bytes long:  3 bytes for initials and two bytes for score.
@@ -499,29 +620,29 @@ void enterHighscore()
  * @brief Prints 'Hello World!', shows the intro and inits the seed for random
  * numbers.
  */
-void setup
+void setup()
 {
     arduboy.start();
     arduboy.setFrameRate(60);
     arduboy.print("Hello World!");
     arduboy.display();
-    intro();
+    showIntro();
     arduboy.initRandomSeed();
 }
 
 /**
  * @brief This function calls all the other functions during the game.
  */
-void loop
+void loop()
 {
     // pause render until it's time for the next frame
     if (!(arduboy.nextFrame())) return;
     
     // Show titlescreen and highscorelist until fire is pressed.
-    while ((!arduboy.getInput & FIRE_BUTTON) && !ingame)
+    while (!(arduboy.getInput() && FIRE_BUTTON) && !ingame)
     {
         showTitle();
-        showHighscore();
+        showHighscore(2);
     }
     ingame = true;
     if(initLevel)
@@ -537,7 +658,7 @@ void loop
     drawScore();
     
     // Pause if PAUSE is pressed.
-    if(arduboy.getInput() & PAUSE_BUTTON) pause();
+    if(arduboy.getInput() & PAUSE_BUTTON) pauseGame();
     moveSnake();
     arduboy.display();
 }
